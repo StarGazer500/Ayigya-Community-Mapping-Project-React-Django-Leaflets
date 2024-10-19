@@ -1,1 +1,1 @@
-# Owner-avatar-Ayigya-Community-Mapping-Project-React-Django-Leaflets
+Ayigya-Community-Mapping-Project-React-Django-Leaflets
