@@ -2,7 +2,8 @@ import React, { useState,useEffect, useRef } from 'react';
 import QueryPanel from './querypanel'
 import SimpleQuery from './simplequery'
 import DetailsTableView from './tableview'
-import Legend from "./lengends"
+// import Legend from "./lengends"
+import LayerSwitcher from "./layerswitcher"
 
 import {
   MapContainer,
@@ -62,7 +63,9 @@ export function MapComponent() {
 <     div className="flex flex-col flex-1 overflow-hidden">
 <       div className="flex flex-1">
       <QueryPanel addLayerToMap = {addLayerToMap}  setIsTableViewOpen ={setIsTableViewOpen} results = {results} setResults = {setResults} tableData = {tableData} tableColumnNames={tableColumnNames} setTableColumnNames = {setTableColumnNames} seTableData = {seTableData}  isOpen={isOpen} map={mapRef.current} />
+      
     <div className="flex-1 relative">
+    <LayerSwitcher map = {mapRef.current}/>
     <button
               style={{ zIndex: 4000 }}
               onClick={() => setIsOpen(!isOpen)}
@@ -76,7 +79,7 @@ export function MapComponent() {
               center={currentPosition} 
               zoom={20} 
               // style={{ height: "100vh", width: "100%" }} 
-              className="w-full h-full bg-grey"
+              className="w-full h-full  bg-grey"
               scrollWheelZoom={true}
               ref = {mapRef}
             
@@ -104,8 +107,8 @@ export function MapComponent() {
               </LayersControl>
             </MapContainer>
             </div>
-             <Legend  map={mapRef.current} /> 
-            {simpleQueryResults?<div ><h2 style={{color:"white"}} className='absolute font-bold  bg-red-500 p-1 rounded-md  bottom-2 left-2'>{simpleQueryResults} Results Returned</h2></div>:null} 
+             {/* <Legend  map={mapRef.current} />  */}
+            {simpleQueryResults?<div ><h2 style={{color:"white"}} className='absolute z-[9000] font-bold  bg-red-500 p-1 rounded-md  bottom-2 left-2'>{simpleQueryResults} Results Returned</h2></div>:null} 
             </div>
         </div>
         {isTableViewOpen?<DetailsTableView map = {mapRef.current} tableColumnNames = {tableColumnNames} tableData= {tableData}/>:null}

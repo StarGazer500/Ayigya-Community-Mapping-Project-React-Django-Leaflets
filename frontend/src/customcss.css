@@ -1,0 +1,12 @@
+.leaflet-middle-right {
+    position: absolute;
+    z-index: 1000;
+    pointer-events: none;
+    right: 10px;
+    bottom: 5%;
+    transform: translateY(-50%);
+  }
+  
+  .leaflet-middle-right .leaflet-control {
+    pointer-events: auto;
+  }
