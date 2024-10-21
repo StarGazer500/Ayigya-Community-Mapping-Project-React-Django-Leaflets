@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect, useRef } from 'react';
 import QueryPanel from './querypanel'
 import SimpleQuery from './simplequery'
 import DetailsTableView from './tableview'
@@ -8,6 +8,7 @@ import {
   MapContainer,
   TileLayer,
   LayersControl,
+  useMap
 } from 'react-leaflet';
 import L, { map } from 'leaflet';
 
@@ -22,7 +23,8 @@ L.Icon.Default.mergeOptions({
 const { BaseLayer } = LayersControl;
 
 export function MapComponent() {
-  const [map, setMap] = useState(null);
+
+  const mapRef = useRef()
   const [geolocation, setGeolocation] = useState(null);
   const [marker, setMarker] = useState(null);
   const [isOpen, setIsOpen] = useState(false)
@@ -35,13 +37,21 @@ export function MapComponent() {
   // const popupRef = useRef();
   const [currentPosition] = useState([6.69145, -1.57465]);
 
-  const addLayerToMap = async(layer) => {
-    if (map && layer) {
-      map.addLayer(layer)
-      
-      console.log(`Layer ${layer.get('title')} added to map`);
+  const addLayerToMap = (layer) => {
+    if (mapRef.current && layer && !mapRef.current.hasLayer(layer)) {
+      mapRef.current.addLayer(layer);
+      // mapRef.current.invalidateSize();
+      console.log(`Layer ${layer.options.title} added to map`);
     }
   };
+
+  useEffect(() => {
+    if (mapRef.current) {
+    
+      console.log("set map is",mapRef.current)
+      // Do something with the map
+    }
+  }, [mapRef.current]);
 
   return (
     <div className="flex flex-col w-full h-screen" >
@@ -51,7 +61,7 @@ export function MapComponent() {
       </div>
 <     div className="flex flex-col flex-1 overflow-hidden">
 <       div className="flex flex-1">
-      <QueryPanel addLayerToMap = {addLayerToMap}  setIsTableViewOpen ={setIsTableViewOpen} results = {results} setResults = {setResults} tableData = {tableData} tableColumnNames={tableColumnNames} setTableColumnNames = {setTableColumnNames} seTableData = {seTableData}  isOpen={isOpen} map={map} />
+      <QueryPanel addLayerToMap = {addLayerToMap}  setIsTableViewOpen ={setIsTableViewOpen} results = {results} setResults = {setResults} tableData = {tableData} tableColumnNames={tableColumnNames} setTableColumnNames = {setTableColumnNames} seTableData = {seTableData}  isOpen={isOpen} map={mapRef.current} />
     <div className="flex-1 relative">
     <button
               style={{ zIndex: 4000 }}
@@ -60,13 +70,17 @@ export function MapComponent() {
             >
               {isOpen ? "Hide Advanced Query" : "Open Advanced Query"}
             </button>
-            <SimpleQuery  addLayerToMap = {addLayerToMap}  setIsTableViewOpen = {setIsTableViewOpen} setSimpleQueryResults = {setSimpleQueryResults} setTableColumnNames = {setTableColumnNames} seTableData = {seTableData} map={map} />
+            <SimpleQuery  addLayerToMap = {addLayerToMap}  setIsTableViewOpen = {setIsTableViewOpen} setSimpleQueryResults = {setSimpleQueryResults} setTableColumnNames = {setTableColumnNames} seTableData = {seTableData} map={mapRef.current} />
             <div className="h-full bg-grey relative">
             <MapContainer 
               center={currentPosition} 
               zoom={20} 
-              style={{ height: "100vh", width: "100%" }} 
+              // style={{ height: "100vh", width: "100%" }} 
+              className="w-full h-full bg-grey"
               scrollWheelZoom={true}
+              ref = {mapRef}
+            
+             
             >
               <LayersControl position="topright">
                 <BaseLayer  name="OpenStreetMap">
@@ -90,11 +104,11 @@ export function MapComponent() {
               </LayersControl>
             </MapContainer>
             </div>
-             <Legend  map={map} /> 
-            {simpleQueryResults?<div ><h2 style={{color:"white"}} className='absolute font-bold  bg-red-500 p-1 rounded-md  bottom-2 left-2'>{simpleQueryResults} Results Returned</h2></div>:null} */}
+             <Legend  map={mapRef.current} /> 
+            {simpleQueryResults?<div ><h2 style={{color:"white"}} className='absolute font-bold  bg-red-500 p-1 rounded-md  bottom-2 left-2'>{simpleQueryResults} Results Returned</h2></div>:null} 
             </div>
         </div>
-        {isTableViewOpen?<DetailsTableView map = {map} tableColumnNames = {tableColumnNames} tableData= {tableData}/>:null}
+        {isTableViewOpen?<DetailsTableView map = {mapRef.current} tableColumnNames = {tableColumnNames} tableData= {tableData}/>:null}
       </div>
     </div>
   );

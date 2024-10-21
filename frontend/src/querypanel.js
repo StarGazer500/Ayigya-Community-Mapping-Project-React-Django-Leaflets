@@ -1,4 +1,8 @@
 import React, { useState,useCallback, useEffect} from 'react';
+import L from 'leaflet';
+import WMSCapabilities from 'wms-capabilities'
+
+
 
 
 
@@ -14,6 +18,8 @@ function QueryPanel({addLayerToMap ,setIsTableViewOpen,results,setResults,tableD
   const [operators,setOperations]= useState([])
   const [error, setError] = useState(null);
   const [geojsonLayer, setGeojsonLayer] = useState(null);
+  const [bounds,setBounds] = useState()
+  
 
  
 
@@ -79,17 +85,19 @@ function QueryPanel({addLayerToMap ,setIsTableViewOpen,results,setResults,tableD
     }
 }
 
-async function getData(layername) {
+
+
+async function getData(layerName, map) {
   const baseUrl = 'http://localhost:8080/geoserver/ows';
   const params = new URLSearchParams({
     service: 'WFS',
     version: '1.0.0',
     request: 'GetFeature',
-    typeName: layername,
+    typeName: layerName,
     outputFormat: 'application/json'
   });
   const url = `${baseUrl}?${params.toString()}`;
-  
+
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -98,35 +106,64 @@ async function getData(layername) {
     const data = await response.json();
     console.log("GeoJSON data received:", data);
 
-    // Create a GeoJSON format instance
-    // const geojsonFormat = new GeoJSON();
+    // Create a Leaflet GeoJSON layer
+    const geoJsonLayer = L.geoJSON(data, {
+      style: function (feature) {
+        return { color: 'blue' }; // You can customize the style here
+      },
+      onEachFeature: function (feature, layer) {
+        // You can add popups or tooltips here
+        if (feature.properties) {
+          layer.bindPopup(Object.keys(feature.properties).map(key => 
+            feature.properties[key]!==null?`${key}: ${feature.properties[key]}`:null
+          ).join('<br>'));
+        }
+      }
+    });
+    
 
-    // // Read features as a FeatureCollection
-    // const features = geojsonFormat.readFeatures(
-    //   { type: "FeatureCollection", features: data.features }, 
-    //   { featureProjection: 'EPSG:4326' }
-    // );
+   
 
-    // console.log("Features loaded:", features.length);
-    // setResults(features.length);
+    // Fit the map to the GeoJSON layer's bounds
+    const bounds = geoJsonLayer.getBounds()
+    const latLngBounds = [
+      [bounds._southWest.lat, bounds._southWest.lng], // Southwest corner
+      [bounds._northEast.lat, bounds._northEast.lng]  // Northeast corner
+  ]
 
-    // if (features.length > 0) {
-    //   // Update tableData with the new features
-    //   seTableData(features);
-    //   console.log("Data Retrieved Successfully");
-    //   console.log("First feature geometry:", features[0].getGeometry().getCoordinates());
-    //   return features; // Return the features if any are found
-    // } else {
-    //   console.log("No features found for the query.");
-    //   return []; // Return an empty array if no features are found
-    // }
+  setBounds(latLngBounds)
+
+  console.log("bounds",latLngBounds)
+
+    console.log("Features loaded:", data.features.length);
+    setResults(data.features.length);
+
+    if (data.features.length > 0) {
+      // Update tableData with the new features
+      seTableData(data.features);
+      console.log("Data Retrieved Successfully",);
+      console.log("First feature geometry:", data.features[0].geometry.coordinates);
+      return data.features; // Return the features if any are found
+    } else {
+      console.log("No features found for the query.");
+      return []; // Return an empty array if no features are found
+    }
   } catch (error) {
     console.error("Error fetching GeoJSON data:", error);
     return null; // Return null or handle the error as needed
   } finally {
-    console.log("Map projection:", map.getView().getProjection().getCode());
+    console.log("Map projection:", 'EPSG:3857'); // Leaflet uses Web Mercator by default
   }
 }
+
+// Usage:
+// getData('your_layer_name', mapInstance)
+//   .then(features => {
+//     if (features) {
+//       console.log('Features loaded:', features.length);
+//     }
+//   })
+//   .catch(error => console.error('Error:', error));
 
  const filterQuery = useCallback(() => {
     if (!map) return;
@@ -167,48 +204,48 @@ async function getData(layername) {
 
         
 
-        // const features = new GeoJSON().readFeatures(
-        //   { type: "FeatureCollection", features: data.features }, 
-        //   { featureProjection: 'EPSG:4326' }
-        // );
+        const geoJsonData = L.geoJSON(data, {
+          style: function (feature) {
+            return { color: 'blue' }; // You can customize the style here
+          },
+          onEachFeature: function (feature, layer) {
+            // You can add popups or tooltips here
+            if (feature.properties) {
+              layer.bindPopup(Object.keys(feature.properties).map(key => 
+                feature.properties[key]!==null?`${key}: ${feature.properties[key]}`:null
+              ).join('<br>'));
+            }
+          }
+        });
 
-        // console.log("Features loaded:", features.length);
-        // setResults(features.length)
+        console.log("Features loaded:", data.features.length);
+        setResults(data.features.length)
 
-        // if (features.length > 0) {
-        //   seTableData(features)
-          
-          // const vectorSource = new VectorSource({
-          //   features: features
-          // });
+        if (data.features.length > 0) {
+          seTableData(data.features)
 
-          // const newGeojsonLayer = new VectorLayer({
-          //   source: vectorSource,
-          //   title:selectedFeatureLayer,
-          //   style: new Style({
-          //     fill: new Fill({ color: 'rgba(255, 255, 255, 0.2)' }),
-          //     stroke: new Stroke({ color: '#ffcc33', width: 3 }),
-          //     image: new Circle({ radius: 7, fill: new Fill({ color: '#ffcc33' }) }),
-          //   }),
-          // });
-
-          // addLayerToMap(newGeojsonLayer)
+          addLayerToMap(geoJsonData)
          
-          // setGeojsonLayer(newGeojsonLayer);
+          setGeojsonLayer(geoJsonData);
 
-          // const extent = vectorSource.getExtent();
-          // console.log("Layer extent:", extent);
-          // if (!isEmpty(extent)) {
-          //   map.getView().fit(extent, { duration: 1000, maxZoom: 20 });
-          // } else {
-          //   console.log("Invalid or empty extent");
-          // }
+          const extent = geoJsonData.getBounds();
+          const latLngBounds = [
+            [extent._southWest.lat, extent._southWest.lng], // Southwest corner
+            [extent._northEast.lat, extent._northEast.lng]  // Northeast corner
+        ]
+          console.log("extends",extent)
+          console.log("Layer extent:", latLngBounds);
+          if (extent) {
+            setBounds(latLngBounds)
+          } else {
+            console.log("Invalid or empty extent");
+          }
 
-          // console.log("First feature geometry:", features[0].getGeometry().getCoordinates());
-        // } 
-        // else {
-        //   console.log("No features found for the query.");
-        // }
+          
+        } 
+        else {
+          console.log("No features found for the query.");
+        }
       })
       .catch(error => {
         console.error("Error fetching GeoJSON data:", error);
@@ -217,117 +254,64 @@ async function getData(layername) {
     // console.log("Map projection:", map.getView().getProjection().getCode());
   }, [map, geojsonLayer, selectedFeatureLayer, selectedAttribute, selectedQueryType, value]);
 
+
+
+ 
+
   async function getWmsLayerExtent(layerName) {
-    // const baseUrl = 'http://localhost:8080/geoserver/nurc/wms?';
+    const baseUrl = 'http://localhost:8080/geoserver/nurc/wms?';
+    const workspace = 'nurc'
+    try {
+        // Construct the WMS capabilities request URL
+        const response = await fetch(`${baseUrl}SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities`);
+        const text = await response.text();
+        const parser = new WMSCapabilities();
+        const result = parser.read(text);
+        console.log("results",result)
 
-    // try {
-    //     const response = await fetch(baseUrl + 'SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities');
-    //     const text = await response.text();
-    //     const parser = new WMSCapabilities();
-    //     const result = parser.read(text);
-
-    //     // Retrieve the geographic bounding box for the specified layer
-    //     const layer = result.Capability.Layer.Layer.find(l => l.Name === layerName);
-    //     if (layer && layer.EX_GeographicBoundingBox) {
-    //         const extent = layer.EX_GeographicBoundingBox;
-    //         return extent; // Return the extent in EPSG:4326
-    //     } else {
-    //         console.error('Layer not found or no bounding box available.');
-    //         return null; // Return null if the layer is not found
-    //     }
-    // } catch (error) {
-    //     console.error('Error fetching WMS capabilities:', error);
-    //     return null; // Return null in case of an error
-    // }
+        // Retrieve the geographic bounding box for the specified layer
+        const fullLayerName = `${workspace}:${layerName}`;
+        const layer = result.Capability.Layer.Layer.find(l => l.Name === fullLayerName);
+        
+        if (layer && layer.EX_GeographicBoundingBox) {
+            const extent = layer.EX_GeographicBoundingBox;
+            return extent; // Return the extent in EPSG:4326
+        } else {
+            console.error('Layer not found or no bounding box available.');
+            return null; // Return null if the layer is not found
+        }
+    } catch (error) {
+        console.error('Error fetching WMS capabilities:', error);
+        return null; // Return null in case of an error
+    }
 }
 
-// const layerExists = (layerName) => {
-//   if (!map) return false;
-  
-//   return map.getLayers().getArray().some(layer => {
-//     if (layer instanceof LayerGroup) {
-//       return layer.getLayers().getArray().some(subLayer => 
-//         subLayer.getSource() instanceof ImageWMS &&
-//         subLayer.getSource().getParams().LAYERS === layerName
-//       );
-//     }
-//     return layer.getSource() instanceof ImageWMS &&
-//            layer.getSource().getParams().LAYERS === layerName;
-//   });
-// };
-
-// const zoomToFitAllLayers = () => {
-
-//   if (!map) return;
-
-//   let overallExtent = createEmpty();
-//   let hasValidExtent = false;
-
-//   map.getLayers().forEach(layer => {
-//     // Skip WMTS layers and base OSM layer
-//     if (layer.getSource() instanceof WMTS) {
-//       return;
-//     }
-
-//     if (layer.getVisible()) {
-//       let layerExtent;
-//       if (layer instanceof VectorLayer) {
-//         const source = layer.getSource();
-//         if (source.getFeatures().length > 0) {
-//           layerExtent = source.getExtent();
-//         }
-//       } else if (layer instanceof ImageLayer || layer instanceof TileLayer) {
-//         layerExtent = layer.getExtent();
-//       }
-
-//       if (layerExtent && 
-//           !isEmpty(layerExtent) && 
-//           layerExtent.every(coord => isFinite(coord) && !isNaN(coord))) {
-//         extend(overallExtent, layerExtent);
-//         hasValidExtent = true;
-//       }
-//     }
-//   });
-
-//   if (hasValidExtent) {
-//     const center = getCenter(overallExtent);
-//     const view = map.getView();
-//     const currentZoom = view.getZoom();
-    
-//     // Zoom out slightly to ensure content is visible
-//     const newZoom = Math.max(currentZoom - 1, 0);
-
-//     view.animate({
-//       center: center,
-//       zoom: newZoom,
-//       duration: 1000
-//     });
-
-//     console.log('Zooming to center:', center, 'with zoom level:', newZoom);
-//   } else {
-//     console.warn("No valid extents found for visible non-WMTS layers.");
-//   }
-// };
 
 
-const createWMSLayer = async (layerName) => {
-  // if (!layerExists(layerName)) {
-  //   return new ImageLayer({
-  //     source: new ImageWMS({
-  //       url: 'http://localhost:8080/geoserver/nurc/wms',
-  //       params: {
-  //         'LAYERS': layerName,
-  //         'TILED': true,
-  //       },
-  //       serverType: 'geoserver',
-  //       crossOrigin: 'anonymous',
-  //     }),
-  //     title: layerName,
-  //   });
-  // }
-  // return null;
+
+
+// Example usage
+
+
+
+
+
+
+
+// Function to create a WMS layer
+const createWMSLayer = (layerName) => {
+  const wmsLayer = L.tileLayer.wms('http://localhost:8080/geoserver/nurc/wms', {
+    layers: layerName,
+    format: 'image/png',
+    transparent: true,
+    version: '1.3.0',
+    tiled: true,
+    opacity: 1,
+    zIndex: 1000,
+  });
+  wmsLayer.options.title = layerName;
+  return wmsLayer;
 };
-
  
 
 
@@ -339,22 +323,17 @@ const createWMSLayer = async (layerName) => {
         // tableColumnNames.length = 0
       // const allAttributes= []
        
-        for (var i=0; i<layers.length;i++){
-          
-            let newLayer1 = await createWMSLayer(layers[i].name)
-          
-            // var columnData = await getAttributeNames("nurc:"+layers[i].name)
-            
-              // allAttributes.push(...columnData); // Set attributes if the array is empty
-            
-            
-         
-            // await getData("nurc:"+layers[i].name)
-            
-            await addLayerToMap(newLayer1)
-            
-            
-        }
+      for (let i = 0; i < layers.length; i++) {
+        let newLayer = createWMSLayer(layers[i].name);
+        console.log("layer", newLayer);
+        addLayerToMap(newLayer);
+        console.log("map",map)
+        
+        // Uncomment and adjust these lines if you need to fetch additional data
+        // var columnData = await getAttributeNames("nurc:"+layers[i].name);
+        // allAttributes.push(...columnData);
+        // await getData("nurc:"+layers[i].name);
+      }
         
         // setTableColumnNames(...new Set(allAttributes))
       
@@ -364,20 +343,28 @@ const createWMSLayer = async (layerName) => {
     }else if (selectedFeatureLayer !=="All Feature Layers" & selectedAttribute ==="None" & selectedQueryType ==="None"){
       tableData.length = 0
       // map.addLayer(await createWMSLayer(selectedFeatureLayer));
-      var newLayer = await createWMSLayer(selectedFeatureLayer)
+      var newLayer = createWMSLayer(selectedFeatureLayer)
       await getAttributeNames("nurc:"+selectedFeatureLayer)
       setTableColumnNames(attributes)
       const data = await getData("nurc:"+selectedFeatureLayer)
       
       console.log("getdata",data)
       setIsTableViewOpen(true)
-      await addLayerToMap(newLayer)
+      addLayerToMap(newLayer)
+      // map.fitBounds(bounds)
       
       // layerSwitcherRef.current.addOverlay(newLayer)
       
 
         // Zoom to the extent of the new WMS layer
-        const extent = await  getWmsLayerExtent("nurc:"+selectedFeatureLayer);
+        // const extent = await  getWmsLayerExtent(selectedFeatureLayer);
+        // console.log(extent)
+       
+        // const bounds = [
+        //   [extent.southBoundLatitude, extent.westBoundLongitude], // Southwest corner
+        //   [extent.northBoundLatitude, extent.eastBoundLongitude]  // Northeast corner
+        // ];
+        // map.fitBounds(bounds)
       
         // if (extent) {
         //     map.getView().fit(extent, {
@@ -425,7 +412,12 @@ async function SetOperations(attribute){
   }
 }
 
-
+useEffect(() => {
+  if (bounds) {
+      // Make sure bounds are valid before calling fitBounds
+      map.fitBounds(bounds);
+  }
+}, [bounds])
 
   // Log selected values whenever they change
   useEffect(() => {
